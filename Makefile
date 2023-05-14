@@ -50,7 +50,7 @@ whitelist: $(WHITELIST)
 
 # {{{ test
 
-SITE_CUSTOMIZE = sitecustomize.py
+SITE_CUSTOMIZE = tests/sitecustomize.py
 $(SITE_CUSTOMIZE):
 	echo > $@ "import coverage; coverage.process_startup()"
 
@@ -77,6 +77,7 @@ _SPACE = $(_NOOP) $(_NOOP)
 define TEST
 .PHONY: $1
 $1: TEST_PATH = tests/$2
+$1: export PYTHONPATH := $(CURDIR)/tests:$$(PYTHONPATH)
 $1: export COVERAGE_PROCESS_START = $(CURDIR)/$$(COV_CFG)
 ifneq ($(EXPRESSION),)
 $1: override ARGS += $$(addprefix -k$(_SPACE),$(EXPRESSION))
