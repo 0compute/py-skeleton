@@ -121,7 +121,7 @@ SKEL_DIR = $(dir $(lastword $(MAKEFILE_LIST)))
 
 ifneq ($(SKEL_DIR),./)
 
-SKEL_FILES = $(shell git -C $(SKEL_DIR) ls-files | grep -v README.md)
+SKEL_FILES = $(shell git -C $(SKEL_DIR) ls-files | grep -Ev "README.md|action.yml")
 
 $(SKEL_FILES):
 	ln -s $(SKEL_DIR)$@
