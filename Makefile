@@ -112,8 +112,6 @@ test: .utest .ftest .atest
 
 # {{{ setup
 
-# called as `make -f .skel/Makefile setup`
-
 SKEL_DIR = $(dir $(lastword $(MAKEFILE_LIST)))
 
 ifneq ($(SKEL_DIR),./)

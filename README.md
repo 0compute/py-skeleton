@@ -1,3 +1,11 @@
-# Python Project Skeleton
+# Python Project
 
-Skeleton containing shared code for 0compute Python projects.
+Shared code for 0compute Python projects.
+
+## Setup
+
+```
+git submodule add git@github.com:0compute/pyproject .pyproject
+make -f .pyproject/Makefile setup
+echo "include .pyproject/Makefile" > Makefile
+```

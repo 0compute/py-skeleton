@@ -1,5 +1,5 @@
-name: py-skeleton
-description: 0compute Python project skeleton
+name: pyproject
+description: 0compute Python shared
 
 inputs:
   cachix-authToken:
