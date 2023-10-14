@@ -18,8 +18,8 @@ ARGS ?=
 
 # {{{ lint
 
-.PHONY: pre-commit
-pre-commit:
+.PHONY: lint
+lint:
 	pre-commit run -a $(ARGS) | less
 
 DMYPY_JSON = .dmypy.json
