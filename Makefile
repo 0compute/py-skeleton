@@ -22,11 +22,17 @@ ARGS ?=
 pre-commit:
 	pre-commit run -a $(ARGS) | less
 
+DMYPY_JSON = .dmypy.json
+
 .PHONY: mypy
 ifeq ($(ARGS),)
 mypy: override ARGS = .
 endif
 mypy:
+# dmypy is flaky af so make this a fresh run
+ifneq ($(wildcard $(DMYPY_JSON)),)
+	-kill $$(jq '.["pid"]' $(DMYPY_JSON))
+endif
 	dmypy run $(ARGS) | less
 
 .PHONY: ruff
