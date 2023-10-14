@@ -58,8 +58,6 @@ SITE_CUSTOMIZE = tests/sitecustomize.py
 $(SITE_CUSTOMIZE):
 	echo > $@ "import coverage; coverage.process_startup()"
 
-TEST_PATH ?=
-
 EXPRESSION ?=
 
 COV_REPORT ?= html
@@ -73,27 +71,31 @@ COV_ARGS = --cov \
 		   --cov-report $(COV_REPORT)
 
 .covcfg-%.toml: covcfg.py pyproject.toml covcfg-%.toml
-	./$^ > $@
+	./$^ $(COV_NAME) > $@
 
 _NOOP =
 _SPACE = $(_NOOP) $(_NOOP)
 
 define TEST
-.PHONY: $1
-$1: TEST_PATH = tests/$2
-$1: export PYTHONPATH := $(CURDIR)/tests:$$(PYTHONPATH)
-$1: export COVERAGE_PROCESS_START = $(CURDIR)/$$(COV_CFG)
+.PHONY: .$1
+.$1: export PYTHONPATH := $(CURDIR)/tests:$$(PYTHONPATH)
+.$1: export COVERAGE_PROCESS_START = $(CURDIR)/$$(COV_CFG)
+.$1: override ARGS += -k $2
+
 ifneq ($(EXPRESSION),)
-$1: override ARGS += $$(addprefix -k$(_SPACE),$(EXPRESSION))
+.$1: override ARGS += $$(addprefix -k$(_SPACE),$(EXPRESSION))
 endif
-$1: $$(SITE_CUSTOMIZE)
+.$1: $$(SITE_CUSTOMIZE)
 ifneq ($(wildcard covcfg-$1.toml),)
-$1: COV_CFG = .covcfg-$1.toml
-$1: override COV_ARGS += --cov-config=$$(COV_CFG)
-$1: .covcfg-$1.toml
+.covcfg-$1.toml: COV_NAME=$2
+.$1: COV_CFG = .covcfg-$1.toml
+.$1: override COV_ARGS += --cov-config=$$(COV_CFG)
+.$1: .covcfg-$1.toml
 endif
-$1:
-	pytest $$(COV_ARGS) $$(ARGS) $$(TEST_PATH)
+.$1:
+	pytest $$(COV_ARGS) $$(ARGS)
+.PHONY: $1
+$1: .$1
 endef
 
 $(eval $(call TEST,utest,unit))
@@ -101,11 +103,8 @@ $(eval $(call TEST,ftest,functional))
 $(eval $(call TEST,atest,acceptance))
 
 .PHONY: test
-test: utest ftest atest coverage-combined
-
-.PHONY: coverage-combined
-coverage-combined:
-	coverage combine --keep .coverage-[u,f,a]test
+test: .utest .ftest .atest
+	coverage combine --keep $(addprefix .coverage-,$^)
 	coverage report --skip-covered
 	coverage $(COV_REPORT)
 
