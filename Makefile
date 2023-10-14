@@ -97,8 +97,11 @@ $(eval $(call TEST,ftest,functional))
 $(eval $(call TEST,atest,acceptance))
 
 .PHONY: test
-test: utest ftest atest
-	coverage combine --keep .coverage-*test
+test: utest ftest atest coverage-combined
+
+.PHONY: coverage-combined
+coverage-combined:
+	coverage combine --keep .coverage-[u,f,a]test
 	coverage report --skip-covered
 	coverage $(COV_REPORT)
 
