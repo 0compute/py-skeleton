@@ -6,8 +6,6 @@ override MAKEFLAGS += --no-builtin-rules --warn-undefined-variables
 
 .DELETE_ON_ERROR:
 
-export LESS = --no-init --quit-if-one-screen --raw-control-chars
-
 export CLICOLOR_FORCE = 1
 
 export FORCE_COLOR = 1
@@ -20,7 +18,7 @@ ARGS ?=
 
 .PHONY: lint
 lint:
-	pre-commit run -a $(ARGS) | less
+	pre-commit run -a $(ARGS)
 
 DMYPY_JSON = .dmypy.json
 
@@ -33,12 +31,12 @@ mypy:
 ifneq ($(wildcard $(DMYPY_JSON)),)
 	-kill $$(jq '.["pid"]' $(DMYPY_JSON))
 endif
-	dmypy run $(ARGS) | less
+	dmypy run $(ARGS)
 
 .PHONY: ruff
 ruff: override ARGS += .
 ruff:
-	ruff check $(ARGS) | less
+	ruff check $(ARGS)
 
 WHITELIST = tests/whitelist.py
 
