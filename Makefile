@@ -119,7 +119,7 @@ ifneq ($(SKEL_DIR),./)
 SKEL_FILES = $(shell git -C $(SKEL_DIR) ls-files | grep -Ev "README.md|action.yml")
 
 $(SKEL_FILES):
-	ln -s $(SKEL_DIR)$@
+	ln -sf $(SKEL_DIR)$@
 
 .PHONY: setup
 setup: $(SKEL_FILES)
