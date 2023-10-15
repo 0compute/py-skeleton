@@ -14,6 +14,21 @@ ARGS ?=
 
 # }}}
 
+# {{{ build
+
+.PHONY: result
+result:
+	nix build --file default.nix --out-link $@
+
+NAME ?= $(shell basename $(CURDIR))
+
+.PHONY: push
+push: result
+	grep -q $(NAME).cachix.org ~/.config/nix/nix.conf || cachix use $(NAME)
+	cachix push $(NAME) $<
+
+# }}}
+
 # {{{ lint
 
 .PHONY: lint
