@@ -73,55 +73,50 @@ SITE_CUSTOMIZE = tests/sitecustomize.py
 $(SITE_CUSTOMIZE):
 	echo > $@ "import coverage; coverage.process_startup()"
 
-EXPRESSION ?=
+export PYTHONPATH := $(CURDIR)/tests:$(PYTHONPATH)
 
 COV_REPORT ?= html
 
 COV_CFG = pyproject.toml
 
 COV_ARGS = --cov \
-		   --cov-context test \
+		   --cov-config=$(COV_CFG) \
+		   --cov-context=test \
 		   --no-cov-on-fail \
-		   --cov-report term-missing:skip-covered \
-		   --cov-report $(COV_REPORT)
+		   --cov-report=term-missing:skip-covered \
+		   $(addprefix --cov-report=,$(COV_REPORT))
 
 .covcfg-%.toml: covcfg.py pyproject.toml covcfg-%.toml
-	./$^ $(COV_NAME) > $@
+	./$^ > $@
 
-_NOOP =
-_SPACE = $(_NOOP) $(_NOOP)
+EXPR ?=
 
 define TEST
-.PHONY: .$1
-.$1: export PYTHONPATH := $(CURDIR)/tests:$$(PYTHONPATH)
-.$1: export COVERAGE_PROCESS_START = $(CURDIR)/$$(COV_CFG)
-.$1: override ARGS += -k $2
+.PHONY: .test-$1
 
-ifneq ($(EXPRESSION),)
-.$1: override ARGS += $$(addprefix -k$(_SPACE),$(EXPRESSION))
-endif
-.$1: $$(SITE_CUSTOMIZE)
-ifneq ($(wildcard covcfg-$1.toml),)
-.covcfg-$1.toml: COV_NAME=$2
-.$1: COV_CFG = .covcfg-$1.toml
-.$1: override COV_ARGS += --cov-config=$$(COV_CFG)
-.$1: .covcfg-$1.toml
-endif
-.$1:
+.test-$1: override ARGS += -k "$1$(if $(EXPR), and $(EXPR))"
+.test-$1: $(SITE_CUSTOMIZE)
 	pytest $$(COV_ARGS) $$(ARGS)
+
+ifneq ($(wildcard covcfg-$1.toml),)
+.test-$1: .covcfg-$1.toml
+.test-$1: COV_CFG = .covcfg-$1.toml
+.test-$1: export COVERAGE_PROCESS_START = $$(CURDIR)/$$(COV_CFG)
+endif
+
 .PHONY: $1
-$1: .$1
+test-$1: .test-$1
 endef
 
-$(eval $(call TEST,utest,unit))
-$(eval $(call TEST,ftest,functional))
-$(eval $(call TEST,atest,acceptance))
+$(eval $(call TEST,unit))
+$(eval $(call TEST,functional))
+$(eval $(call TEST,acceptance))
 
 .PHONY: test
-test: .utest .ftest .atest
-	coverage combine --keep $(addprefix .coverage-,$^)
-	coverage report --skip-covered
-	coverage $(COV_REPORT)
+test: .test-unit .test-functional .test-acceptance
+	coverage combine --keep $(addprefix .coverage-,$(patsubst .test-%,%,$^))
+	coverage report --show-missing
+	for report in $(COV_REPORT); do coverage $$report; done
 
 # }}}
 

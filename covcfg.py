@@ -10,9 +10,9 @@ from box import Box
 
 if __name__ == "__main__":
     # used by Makefile: read coverage config from pyproject.toml, merge
-    # covcfg-[ufpa]test.toml on to it, then munge and dump
+    # covcfg-[unit,functional,acceptance].toml on to it, then munge and dump
 
-    pyproject, covcfg, title = sys.argv[1:]
+    pyproject, covcfg = sys.argv[1:]
 
     coverage = Box(toml.load(pyproject)).tool.coverage
     deepmerge.always_merger.merge(coverage, toml.load(covcfg))
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     coverage.run.data_file += f"-{name}"
 
     coverage.html.directory += f"-{name}"
-    coverage.html.title = f"{title.capitalize()} Test Coverage Report"
+    coverage.html.title = f"{name.capitalize()} Test Coverage Report"
 
     xml = Path(coverage.xml.output)
     coverage.xml.output = f"{xml.stem}-{name}{xml.suffix}"
