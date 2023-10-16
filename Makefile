@@ -92,20 +92,18 @@ COV_ARGS = --cov \
 EXPR ?=
 
 define TEST
-.PHONY: .test-$1
+.PHONY: test-$1
 
-.test-$1: override ARGS += -k "$1$(if $(EXPR), and $(EXPR))"
-.test-$1: $(SITE_CUSTOMIZE)
+test-$1: override ARGS += -k "$1$(if $(EXPR), and $(EXPR))"
+test-$1: $(SITE_CUSTOMIZE)
 	pytest $$(COV_ARGS) $$(ARGS)
 
 ifneq ($(wildcard covcfg-$1.toml),)
-.test-$1: .covcfg-$1.toml
-.test-$1: COV_CFG = .covcfg-$1.toml
-.test-$1: export COVERAGE_PROCESS_START = $$(CURDIR)/$$(COV_CFG)
+test-$1: .covcfg-$1.toml
+test-$1: COV_CFG = .covcfg-$1.toml
+test-$1: export COVERAGE_PROCESS_START = $$(CURDIR)/$$(COV_CFG)
 endif
 
-.PHONY: $1
-test-$1: .test-$1
 endef
 
 $(eval $(call TEST,unit))
@@ -113,7 +111,7 @@ $(eval $(call TEST,functional))
 $(eval $(call TEST,acceptance))
 
 .PHONY: test
-test: .test-unit .test-functional .test-acceptance
+test: test-unit test-functional test-acceptance
 	coverage combine --keep $(addprefix .coverage-,$(patsubst .test-%,%,$^))
 	coverage report --show-missing
 	for report in $(COV_REPORT); do coverage $$report; done
