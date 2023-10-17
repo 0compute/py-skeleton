@@ -9,15 +9,20 @@ import toml
 from box import Box
 
 if __name__ == "__main__":
-    # used by Makefile: read coverage config from pyproject.toml, merge
-    # covcfg-[unit,functional,acceptance].toml on to it, then munge and dump
+    # read coverage config from pyproject.toml
+    # merge covcfg.toml on to it if extant
+    # munge and dump
 
-    pyproject, covcfg = sys.argv[1:]
+    # 1st arg is pyproject.toml, 2nd is either a path to covcfg or a name
+    pyproject, covcfg = sys.argv[1:3]
 
     coverage = Box(toml.load(pyproject)).tool.coverage
-    deepmerge.always_merger.merge(coverage, toml.load(covcfg))
 
-    name = covcfg.split("-")[1].split(".")[0]
+    if (covcfg_path := Path(covcfg)).exists():
+        deepmerge.always_merger.merge(coverage, toml.load(covcfg))
+        name = covcfg_path.parent.name
+    else:
+        name = covcfg
 
     coverage.run.data_file += f"-{name}"
 
@@ -25,7 +30,7 @@ if __name__ == "__main__":
     coverage.html.title = f"{name.capitalize()} Test Coverage Report"
 
     xml = Path(coverage.xml.output)
-    coverage.xml.output = f"{xml.stem}-{name}{xml.suffix}"
+    coverage.xml.output = f"{xml.parent}/{xml.stem}-{name}{xml.suffix}"
 
     for conf in coverage.values():
         for value in conf.values():

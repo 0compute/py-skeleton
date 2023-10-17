@@ -10,6 +10,8 @@ export CLICOLOR_FORCE = 1
 
 export FORCE_COLOR = 1
 
+HERE = $(dir $(lastword $(MAKEFILE_LIST)))
+
 ARGS ?=
 
 # }}}
@@ -69,65 +71,93 @@ whitelist: $(WHITELIST)
 
 # {{{ test
 
+# {{{ basic
+
+.PHONY: test
+test:
+	pytest $(ARGS)
+
+# }}}
+
+# {{{ coverage
+
+COV ?=
+COV_REPORT ?= term-missing:skip-covered html
+COV_CFG =
+# conf `coverage.run.dynamic_context` breaks with pytest-cov so we set --cov-context=test
+# https://github.com/pytest-dev/pytest-cov/issues/604
+COV_ARGS = \
+	--cov \
+	--cov-context=test \
+	$(addprefix --cov-report=,$(COV_REPORT))
+
+# needed for subprocess coverage
 SITE_CUSTOMIZE = tests/sitecustomize.py
 $(SITE_CUSTOMIZE):
 	echo > $@ "import coverage; coverage.process_startup()"
 
-export PYTHONPATH := $(CURDIR)/tests:$(PYTHONPATH)
+.PHONY: test-cov
+test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),pyproject.toml)
+test-cov: export PYTHONPATH := $(CURDIR)/tests:$(PYTHONPATH)
+test-cov: $(SITE_CUSTOMIZE)
+	pytest $(COV_ARGS) $(ARGS)
 
-COV_REPORT ?= html
+# }}}
 
-COV_CFG = pyproject.toml
+# {{{ subtest
 
-COV_ARGS = --cov \
-		   --cov-config=$(COV_CFG) \
-		   --cov-context=test \
-		   --no-cov-on-fail \
-		   --cov-report=term-missing:skip-covered \
-		   $(addprefix --cov-report=,$(COV_REPORT))
+SUBTEST_TEST = test-$1
+SUBTEST_COV = test-$1-cov
+SUBTEST_TARGETS = $(SUBTEST_TEST) $(SUBTEST_COV)
 
-.covcfg-%.toml: covcfg.py pyproject.toml covcfg-%.toml
-	./$^ > $@
+XDIST_PROCESSES ?= logical
 
-EXPR ?=
+tests/.covcfg-%.toml: $(HERE)covcfg.py pyproject.toml
+	./$^ $* > $@
 
-define TEST
+define SUBTEST
 .PHONY: test-$1
 
-test-$1: override ARGS += -k "$1$(if $(EXPR), and $(EXPR))"
-test-$1: $(SITE_CUSTOMIZE)
-	pytest $$(COV_ARGS) $$(ARGS)
-
-ifneq ($(wildcard covcfg-$1.toml),)
-test-$1: .covcfg-$1.toml
-test-$1: COV_CFG = .covcfg-$1.toml
-test-$1: export COVERAGE_PROCESS_START = $$(CURDIR)/$$(COV_CFG)
+ifneq ($(shell find tests -path \*$1\*.py),)
+$(SUBTEST_TARGETS): override ARGS += -k $1
 endif
+
+ifneq ($(wildcard tests/$1/pytest),)
+$(SUBTEST_TARGETS): override ARGS += $$(file < tests/$1/pytest)
+endif
+
+ifneq ($(wildcard tests/$1/xdist),)
+$(SUBTEST_TARGETS): override ARGS += --numprocesses=$(XDIST_PROCESSES)
+endif
+
+ifneq ($(wildcard tests/$1/covcfg.toml),)
+tests/.covcfg-$1.toml: tests/$1/covcfg.toml
+$(SUBTEST_COV): COV_CFG = tests/.covcfg-$1.toml
+$(SUBTEST_COV): tests/.covcfg-$1.toml
+$(SUBTEST_COV): override COV_ARGS += --cov-config=$$(COV_CFG)
+endif
+
+$(SUBTEST_TEST): test
+$(SUBTEST_COV): test-cov
 
 endef
 
-$(eval $(call TEST,unit))
-$(eval $(call TEST,functional))
-$(eval $(call TEST,acceptance))
+$(foreach test, \
+	$(shell find tests -mindepth 1 -maxdepth 1 -type d), \
+	$(eval $(call SUBTEST,$(notdir $(test)))))
 
-.PHONY: test
-test: test-unit test-functional test-acceptance
-	coverage combine --keep $(addprefix .coverage-,$(patsubst .test-%,%,$^))
-	coverage report --show-missing
-	for report in $(COV_REPORT); do coverage $$report; done
+# }}}
 
 # }}}
 
 # {{{ setup
 
-SKEL_DIR = $(dir $(lastword $(MAKEFILE_LIST)))
+ifneq ($(HERE),./)
 
-ifneq ($(SKEL_DIR),./)
-
-SKEL_FILES = $(shell git -C $(SKEL_DIR) ls-files | grep -Ev "README.md|action.yml")
+SKEL_FILES = .envrc .pre-commit-config.yaml
 
 $(SKEL_FILES):
-	ln -sf $(SKEL_DIR)$@
+	ln -sf $(HERE)$@
 
 .PHONY: setup
 setup: $(SKEL_FILES)
