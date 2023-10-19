@@ -1,5 +1,7 @@
 # {{{ globals
 
+ifdef IN_NIX_SHELL
+
 SHELL = bash -eu -o pipefail
 
 override MAKEFLAGS += --no-builtin-rules --warn-undefined-variables
@@ -163,6 +165,8 @@ $(SKEL_FILES):
 
 .PHONY: setup
 setup: $(SKEL_FILES)
+
+endif
 
 endif
 
