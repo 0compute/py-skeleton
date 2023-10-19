@@ -7,5 +7,4 @@ Shared code for 0compute Python projects.
 ```
 git submodule add git@github.com:0compute/pyproject .pyproject
 make -f .pyproject/Makefile setup
-echo "include .pyproject/Makefile" > Makefile
 ```

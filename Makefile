@@ -158,7 +158,7 @@ $(foreach test, \
 
 ifneq ($(HERE),./)
 
-SKEL_FILES = .envrc .pre-commit-config.yaml
+SKEL_FILES = Makefile .envrc .pre-commit-config.yaml
 
 $(SKEL_FILES):
 	ln -sf $(HERE)$@
