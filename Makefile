@@ -14,6 +14,8 @@ HERE = $(dir $(lastword $(MAKEFILE_LIST)))
 
 ARGS ?=
 
+PYPROJECT = pyproject.toml
+
 # }}}
 
 # {{{ build
@@ -22,7 +24,7 @@ ARGS ?=
 result:
 	nix build --file default.nix --out-link $@
 
-NAME ?= $(shell basename $(CURDIR))
+NAME ?= $(shell grep "^name" $(PYPROJECT) | sed "s/  */ /g" | cut -d\" -f2)
 
 .PHONY: push
 push: result
@@ -97,7 +99,7 @@ $(SITE_CUSTOMIZE):
 	echo > $@ "import coverage; coverage.process_startup()"
 
 .PHONY: test-cov
-test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),pyproject.toml)
+test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$(PYPROJECT))
 test-cov: export PYTHONPATH := $(CURDIR)/tests:$(PYTHONPATH)
 test-cov: $(SITE_CUSTOMIZE)
 	pytest $(COV_ARGS) $(ARGS)
@@ -112,7 +114,7 @@ SUBTEST_TARGETS = $(SUBTEST_TEST) $(SUBTEST_COV)
 
 XDIST_PROCESSES ?= logical
 
-tests/.covcfg-%.toml: $(HERE)covcfg.py pyproject.toml
+tests/.covcfg-%.toml: $(HERE)covcfg.py $(PYPROJECT)
 	./$^ $* > $@
 
 define SUBTEST
