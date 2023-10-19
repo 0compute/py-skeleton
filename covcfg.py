@@ -5,7 +5,12 @@ import sys
 from pathlib import Path
 
 import deepmerge
-import toml
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore[no-redef]
+
 from box import Box
 
 if __name__ == "__main__":
@@ -16,7 +21,7 @@ if __name__ == "__main__":
     # 1st arg is pyproject.toml, 2nd is either a path to covcfg or a name
     pyproject, covcfg = sys.argv[1:3]
 
-    coverage = Box(toml.load(pyproject)).tool.coverage
+    coverage = Box(tomllib.load(open(pyproject))).tool.coverage
 
     if (covcfg_path := Path(covcfg)).exists():
         deepmerge.always_merger.merge(coverage, toml.load(covcfg))
