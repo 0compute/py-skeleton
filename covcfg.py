@@ -5,29 +5,24 @@ import sys
 from pathlib import Path
 
 import deepmerge
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
-
+import toml
 from box import Box
 
 if __name__ == "__main__":
     # read coverage config from pyproject.toml
-    # merge covcfg.toml on to it if extant
+    # merge covcfg.toml on to it if it exists
     # munge and dump
 
     # 1st arg is pyproject.toml, 2nd is either a path to covcfg or a name
-    pyproject, covcfg = sys.argv[1:3]
+    pyproject, covcfg = map(Path, sys.argv[1:3])
 
-    coverage = Box(tomllib.load(open(pyproject))).tool.coverage
+    coverage = Box(toml.load(pyproject)).tool.coverage
 
-    if (covcfg_path := Path(covcfg)).exists():
+    if covcfg.exists():
         deepmerge.always_merger.merge(coverage, toml.load(covcfg))
-        name = covcfg_path.parent.name
+        name = covcfg.parent.name
     else:
-        name = covcfg
+        name = covcfg.name
 
     coverage.run.data_file += f"-{name}"
 

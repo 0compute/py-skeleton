@@ -1,7 +1,5 @@
 # {{{ globals
 
-ifdef IN_NIX_SHELL
-
 SHELL = bash -eu -o pipefail
 
 override MAKEFLAGS += --no-builtin-rules --warn-undefined-variables
@@ -12,7 +10,8 @@ export CLICOLOR_FORCE = 1
 
 export FORCE_COLOR = 1
 
-HERE = $(dir $(lastword $(MAKEFILE_LIST)))
+HERE = $(patsubst %/,%,$(dir $(lastword \
+	   $(shell realpath --relative-to $(CURDIR) $(MAKEFILE_LIST)))))
 
 ARGS ?=
 
@@ -20,18 +19,59 @@ PYPROJECT = pyproject.toml
 
 # }}}
 
+# {{{ help
+
+define _HELP
+Pyproject Env
+
+Global:
+  ARGS: Append to target command line
+
+Targets:
+
+  build: Build with `nix build`
+
+  push: Push to cachix
+
+  lint: Run pre-commit lint
+
+  mypy: Run mypy
+
+  ruff: Run ruff
+
+  whitelist: Write whitelist to $(WHITELIST)
+
+  test: Run pytest
+    EXPR: Filter tests by substring expression, passed as "-k"
+
+  test-cov: Run pytest with coverage
+    EXPR: As above
+    COV_REPORT: Coverage report types (current: $(COV_REPORT)) - see `pytest --help /--cov-report`
+endef
+
+.PHONY: help
+help:
+	$(info $(_HELP))
+	@true
+
+# }}}
+
 # {{{ build
 
-.PHONY: result
-result:
-	nix build --file default.nix --out-link $@
+.PHONY: build
+build: result
 
-NAME ?= $(shell grep "^name" $(PYPROJECT) | sed "s/  */ /g" | cut -d\" -f2)
+.PHONY: result
+result: override ARGS += --out-link $@
+result:
+	nix build $(ARGS)
+
+NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
 
 .PHONY: push
+result: override ARGS += $<
 push: result
-	grep -q $(NAME).cachix.org ~/.config/nix/nix.conf || cachix use $(NAME)
-	cachix push $(NAME) $<
+	cachix push $(NAME) $(ARGS)
 
 # }}}
 
@@ -41,17 +81,11 @@ push: result
 lint:
 	pre-commit run -a $(ARGS)
 
-DMYPY_JSON = .dmypy.json
-
 .PHONY: mypy
 ifeq ($(ARGS),)
 mypy: override ARGS = .
 endif
 mypy:
-# dmypy is flaky af so make this a fresh run
-ifneq ($(wildcard $(DMYPY_JSON)),)
-	-kill $$(jq '.["pid"]' $(DMYPY_JSON))
-endif
 	dmypy run $(ARGS)
 
 .PHONY: ruff
@@ -77,15 +111,20 @@ whitelist: $(WHITELIST)
 
 # {{{ basic
 
+EXPR ?=
+
+_EMPTY :=
+_SPACE := $(_EMPTY) $(_EMPTY)
+
 .PHONY: test
+test: override ARGS += $(if $(EXPR),-k "$(subst $(_SPACE), and ,$(strip $(EXPR)))")
 test:
-	pytest $(ARGS)
+	pytest $(strip $(ARGS))
 
 # }}}
 
 # {{{ coverage
 
-COV ?=
 COV_REPORT ?= term-missing:skip-covered html
 COV_CFG =
 # conf `coverage.run.dynamic_context` breaks with pytest-cov so we set --cov-context=test
@@ -103,8 +142,8 @@ $(SITE_CUSTOMIZE):
 .PHONY: test-cov
 test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$(PYPROJECT))
 test-cov: export PYTHONPATH := $(CURDIR)/tests:$(PYTHONPATH)
-test-cov: $(SITE_CUSTOMIZE)
-	pytest $(COV_ARGS) $(ARGS)
+test-cov: override ARGS += $(COV_ARGS)
+test-cov: $(SITE_CUSTOMIZE) test
 
 # }}}
 
@@ -114,16 +153,22 @@ SUBTEST_TEST = test-$1
 SUBTEST_COV = test-$1-cov
 SUBTEST_TARGETS = $(SUBTEST_TEST) $(SUBTEST_COV)
 
-XDIST_PROCESSES ?= logical
+NUM_PROCESSES ?= logical
 
-tests/.covcfg-%.toml: $(HERE)covcfg.py $(PYPROJECT)
+tests/.covcfg-%.toml: $(HERE)/covcfg.py $(PYPROJECT)
 	./$^ $* > $@
 
 define SUBTEST
 .PHONY: test-$1
 
+define _HELP :=
+$(_HELP)
+
+  $(SUBTEST_TARGETS): Sub test and coverage
+endef
+
 ifneq ($(shell find tests -path \*$1\*.py),)
-$(SUBTEST_TARGETS): override ARGS += -k $1
+$(SUBTEST_TARGETS): override EXPR += $1
 endif
 
 ifneq ($(wildcard tests/$1/pytest),)
@@ -131,7 +176,7 @@ $(SUBTEST_TARGETS): override ARGS += $$(file < tests/$1/pytest)
 endif
 
 ifneq ($(wildcard tests/$1/xdist),)
-$(SUBTEST_TARGETS): override ARGS += --numprocesses=$(XDIST_PROCESSES)
+$(SUBTEST_TARGETS): override ARGS += --numprocesses=$(NUM_PROCESSES)
 endif
 
 ifneq ($(wildcard tests/$1/covcfg.toml),)
@@ -147,7 +192,8 @@ $(SUBTEST_COV): test-cov
 endef
 
 $(foreach test, \
-	$(shell find tests -mindepth 1 -maxdepth 1 -type d), \
+	$(shell find tests -mindepth 1 -maxdepth 1 -type d \
+		-not -name .\* -and -not -name __pycache__ | sort), \
 	$(eval $(call SUBTEST,$(notdir $(test)))))
 
 # }}}
@@ -156,7 +202,7 @@ $(foreach test, \
 
 # {{{ setup
 
-ifneq ($(HERE),./)
+ifneq ($(HERE),.)
 
 SKEL_FILES = Makefile .envrc .pre-commit-config.yaml
 
@@ -166,7 +212,11 @@ $(SKEL_FILES):
 .PHONY: setup
 setup: $(SKEL_FILES)
 
-endif
+define _HELP :=
+$(_HELP)
+
+  setup: Link skeleton files ($(SKEL_FILES)) to $(CURDIR)
+endef
 
 endif
 
