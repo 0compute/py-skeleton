@@ -6,7 +6,12 @@ from pathlib import Path
 
 import deepmerge
 import toml
-from box import Box
+
+
+class Dic(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+
 
 if __name__ == "__main__":
     # read coverage config from pyproject.toml
@@ -16,7 +21,7 @@ if __name__ == "__main__":
     # 1st arg is pyproject.toml, 2nd is either a path to covcfg or a name
     pyproject, covcfg = map(Path, sys.argv[1:3])
 
-    coverage = Box(toml.load(pyproject)).tool.coverage
+    coverage = Dic(toml.load(pyproject)).tool.coverage
 
     if covcfg.exists():
         deepmerge.always_merger.merge(coverage, toml.load(covcfg))
