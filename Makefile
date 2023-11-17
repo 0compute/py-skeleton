@@ -137,13 +137,17 @@ COV_ARGS = \
 	$(addprefix --cov-report=,$(COV_REPORT))
 
 # needed for subprocess coverage
-SITE_CUSTOMIZE = tests/sitecustomize.py
+SITE_CUSTOMIZE = .site/sitecustomize.py
 $(SITE_CUSTOMIZE):
+	mkdir -p $(@D)
 	echo > $@ "import coverage; coverage.process_startup()"
 
 .PHONY: test-cov
 test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$(PYPROJECT))
 test-cov: override ARGS += $(COV_ARGS)
+# use NIX_PYTHONPATH as this sets the contents as site dirs, which is needed to pick
+# up sitecustomize
+test-cov: export NIX_PYTHONPATH := $(CURDIR)/$(dir $(SITE_CUSTOMIZE)):$(NIX_PYTHONPATH)
 test-cov: $(SITE_CUSTOMIZE) test
 
 # }}}
