@@ -113,13 +113,15 @@ whitelist: $(WHITELIST)
 
 EXPR ?=
 
+TEST_PATH ?=
+
 _EMPTY :=
 _SPACE := $(_EMPTY) $(_EMPTY)
 
 .PHONY: test
 test: override ARGS += $(if $(EXPR),-k "$(subst $(_SPACE), and ,$(strip $(EXPR)))")
 test:
-	pytest $(strip $(ARGS))
+	pytest $(strip $(ARGS) $(TEST_PATH))
 
 # }}}
 
@@ -168,7 +170,7 @@ $(_HELP)
 endef
 
 ifneq ($(shell find tests -path \*$1\*.py),)
-$(SUBTEST_TARGETS): override EXPR += $1
+$(SUBTEST_TARGETS): TEST_PATH = tests/$1
 endif
 
 ifneq ($(wildcard tests/$1/pytest),)
