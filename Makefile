@@ -88,10 +88,15 @@ endif
 mypy:
 	dmypy run $(ARGS)
 
-.PHONY: ruff
-ruff: override ARGS += .
-ruff:
+.PHONY: check
+check: override ARGS += .
+check:
 	ruff check $(ARGS)
+
+.PHONY: format
+format: override ARGS += .
+format:
+	ruff format $(ARGS)
 
 WHITELIST = tests/whitelist.py
 
