@@ -143,7 +143,6 @@ $(SITE_CUSTOMIZE):
 
 .PHONY: test-cov
 test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$(PYPROJECT))
-test-cov: export PYTHONPATH := $(CURDIR)/tests:$(PYTHONPATH)
 test-cov: override ARGS += $(COV_ARGS)
 test-cov: $(SITE_CUSTOMIZE) test
 
@@ -195,7 +194,7 @@ endef
 
 $(foreach test, \
 	$(shell find tests -mindepth 1 -maxdepth 1 -type d \
-		-not -name .\* -and -not -name __pycache__ | sort), \
+		-not -name .\* -and -not -name __pycache__ -and -not -name coverage\* | sort), \
 	$(eval $(call SUBTEST,$(notdir $(test)))))
 
 # }}}
