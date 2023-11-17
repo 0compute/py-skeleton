@@ -6,11 +6,7 @@ from pathlib import Path
 
 import deepmerge
 import toml
-
-
-class Dic(dict):
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
+from zerolib import Dic
 
 
 if __name__ == "__main__":
