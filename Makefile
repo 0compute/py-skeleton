@@ -58,12 +58,15 @@ help:
 
 # {{{ build
 
+GIT_UNTRACKED != git ls-files --others --exclude-standard
+
 .PHONY: build
 build: result
 
 .PHONY: result
 result: override ARGS += --out-link $@
 result:
+	$(if $(GIT_UNTRACKED),$(error Untracked files: [ $(GIT_UNTRACKED) ]))
 	nix build $(ARGS)
 
 NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
