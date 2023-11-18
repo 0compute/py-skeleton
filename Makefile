@@ -149,10 +149,10 @@ $(SITE_CUSTOMIZE):
 
 .PHONY: test-cov
 test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$(PYPROJECT))
-test-cov: override ARGS += $(COV_ARGS)
 # use NIX_PYTHONPATH as this sets the contents as site dirs, which is needed to pick
 # up sitecustomize
-test-cov: export NIX_PYTHONPATH := $(CURDIR)/$(dir $(SITE_CUSTOMIZE)):$(NIX_PYTHONPATH)
+test-cov: export NIX_PYTHONPATH := $(CURDIR)/$(patsubst %/,%,$(dir $(SITE_CUSTOMIZE))):$(NIX_PYTHONPATH)
+test-cov: override ARGS += $(COV_ARGS)
 test-cov: $(SITE_CUSTOMIZE) test
 
 # }}}
