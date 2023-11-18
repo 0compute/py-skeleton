@@ -69,7 +69,7 @@ result:
 NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
 
 .PHONY: push
-result: override ARGS += $<
+push: override ARGS += $<
 push: result
 	cachix push $(NAME) $(ARGS)
 
