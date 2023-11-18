@@ -213,7 +213,11 @@ $(foreach test, \
 
 # }}}
 
-# {{{ setup
+# {{{ admin
+
+.PHONY: fu
+fu:
+	nix flake update
 
 ifneq ($(HERE),.)
 
