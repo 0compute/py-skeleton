@@ -221,7 +221,7 @@ fu:
 
 ifneq ($(HERE),.)
 
-SKEL_FILES = Makefile .envrc .pre-commit-config.yaml
+SKEL_FILES = Makefile .envrc
 
 $(SKEL_FILES):
 	ln -sf $(HERE)$@
