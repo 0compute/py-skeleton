@@ -13,7 +13,7 @@ export FORCE_COLOR = 1
 HERE = $(patsubst %/,%,$(dir $(lastword \
 	   $(shell realpath --relative-to $(CURDIR) $(MAKEFILE_LIST)))))
 
-ARGS ?=
+ARGV ?=
 
 PYPROJECT = pyproject.toml
 
@@ -25,7 +25,7 @@ define _HELP
 Pyproject Env
 
 Global:
-  ARGS: Append to target command line
+  ARGV: Append to target command line
 
 Targets:
 
@@ -64,17 +64,17 @@ GIT_UNTRACKED != git ls-files --others --exclude-standard
 build: result
 
 .PHONY: result
-result: override ARGS += --out-link $@
+result: override ARGV += --out-link $@
 result:
 	$(if $(GIT_UNTRACKED),$(error Untracked files: [ $(GIT_UNTRACKED) ]))
-	nix build $(ARGS)
+	nix build $(ARGV)
 
 NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
 
 .PHONY: push
-push: override ARGS += $<
+push: override ARGV += $<
 push: result
-	cachix push $(NAME) $(ARGS)
+	cachix push $(NAME) $(ARGV)
 
 # }}}
 
@@ -82,24 +82,24 @@ push: result
 
 .PHONY: lint
 lint:
-	pre-commit run -a $(ARGS)
+	pre-commit run -a $(ARGV)
 
 .PHONY: mypy
-ifeq ($(ARGS),)
-mypy: override ARGS = .
+ifeq ($(ARGV),)
+mypy: override ARGV = .
 endif
 mypy:
-	dmypy run $(ARGS)
+	dmypy run $(ARGV)
 
 .PHONY: check
-check: override ARGS += .
+check: override ARGV += .
 check:
-	ruff check $(ARGS)
+	ruff check $(ARGV)
 
 .PHONY: format
-format: override ARGS += .
+format: override ARGV += .
 format:
-	ruff format $(ARGS)
+	ruff format $(ARGV)
 
 WHITELIST = tests/whitelist.py
 
@@ -127,9 +127,9 @@ _EMPTY :=
 _SPACE := $(_EMPTY) $(_EMPTY)
 
 .PHONY: test
-test: override ARGS += $(if $(EXPR),-k "$(subst $(_SPACE), and ,$(strip $(EXPR)))")
+test: override ARGV += $(if $(EXPR),-k "$(subst $(_SPACE), and ,$(strip $(EXPR)))")
 test:
-	pytest $(strip $(ARGS) $(TEST_PATH))
+	pytest $(strip $(ARGV) $(TEST_PATH))
 
 # }}}
 
@@ -139,7 +139,7 @@ COV_REPORT ?= term-missing:skip-covered html
 COV_CFG =
 # conf `coverage.run.dynamic_context` breaks with pytest-cov so we set --cov-context=test
 # https://github.com/pytest-dev/pytest-cov/issues/604
-COV_ARGS = \
+COV_ARGV = \
 	--cov \
 	--cov-context=test \
 	$(addprefix --cov-report=,$(COV_REPORT))
@@ -155,7 +155,7 @@ test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$
 # use NIX_PYTHONPATH as this sets the contents as site dirs, which is needed to pick
 # up sitecustomize
 test-cov: export NIX_PYTHONPATH := $(CURDIR)/$(patsubst %/,%,$(dir $(SITE_CUSTOMIZE))):$(NIX_PYTHONPATH)
-test-cov: override ARGS += $(COV_ARGS)
+test-cov: override ARGV += $(COV_ARGV)
 test-cov: $(SITE_CUSTOMIZE) test
 
 # }}}
@@ -185,18 +185,18 @@ $(SUBTEST_TARGETS): TEST_PATH = tests/$1
 endif
 
 ifneq ($(wildcard tests/$1/pytest),)
-$(SUBTEST_TARGETS): override ARGS += $$(file < tests/$1/pytest)
+$(SUBTEST_TARGETS): override ARGV += $$(file < tests/$1/pytest)
 endif
 
 ifneq ($(wildcard tests/$1/xdist),)
-$(SUBTEST_TARGETS): override ARGS += --numprocesses=$(NUM_PROCESSES)
+$(SUBTEST_TARGETS): override ARGV += --numprocesses=$(NUM_PROCESSES)
 endif
 
 ifneq ($(wildcard tests/$1/covcfg.toml),)
 tests/.covcfg-$1.toml: tests/$1/covcfg.toml
 $(SUBTEST_COV): COV_CFG = tests/.covcfg-$1.toml
 $(SUBTEST_COV): tests/.covcfg-$1.toml
-$(SUBTEST_COV): override COV_ARGS += --cov-config=$$(COV_CFG)
+$(SUBTEST_COV): override COV_ARGV += --cov-config=$$(COV_CFG)
 endif
 
 $(SUBTEST_TEST): test
