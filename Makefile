@@ -37,15 +37,18 @@ Targets:
 
   mypy: Run mypy
 
-  ruff: Run ruff
+  check: Run ruff check
+
+  format: Run ruff format
 
   whitelist: Write whitelist to $(WHITELIST)
 
   test: Run pytest
     EXPR: Filter tests by substring expression, passed as "-k"
+    TEST_PATH: Path to test file or directory
 
   test-cov: Run pytest with coverage
-    EXPR: As above
+    EXPR/TEST_PATH: As above
     COV_REPORT: Coverage report types (current: $(COV_REPORT)) - see `pytest --help /--cov-report`
 endef
 
