@@ -224,10 +224,10 @@ fu:
 
 ifneq ($(HERE),.)
 
-SKEL_FILES = Makefile .envrc
+SKEL_FILES = Makefile .envrc .github/dependabot.yml
 
 $(SKEL_FILES):
-	ln -sf $(HERE)$@
+	ln --symbolic --force --relative $(HERE)/$@ $@
 
 .PHONY: setup
 setup: $(SKEL_FILES)
