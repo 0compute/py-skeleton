@@ -220,7 +220,7 @@ $(foreach test, \
 
 .PHONY: fu
 fu:
-	nix flake update
+	nix flake update $(ARGV)
 
 ifneq ($(HERE),.)
 
