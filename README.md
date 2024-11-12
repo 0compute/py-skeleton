@@ -1,10 +1,10 @@
-# Python Project
+# Python/Nix Project
 
-Shared code for 0compute Python projects.
+Python project skeleton.
 
 ## Setup
 
-```
+```sh
 git submodule add git@github.com:0compute/pyproject .pyproject
 make -f .pyproject/Makefile setup
 ```
