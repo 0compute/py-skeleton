@@ -224,7 +224,7 @@ fu:
 
 ifneq ($(HERE),.)
 
-SKEL_FILES = Makefile .envrc .github/dependabot.yml .yamllint.yml
+SKEL_FILES = Makefile .envrc .yamllint.yml
 
 $(SKEL_FILES):
 	ln --symbolic --force --relative $(HERE)/$@ $@
