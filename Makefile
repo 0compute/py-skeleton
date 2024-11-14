@@ -153,6 +153,9 @@ $(SITE_CUSTOMIZE):
 	mkdir -p $(@D)
 	echo > $@ "import coverage; coverage.process_startup()"
 
+# define if not set to silence warning
+NIX_PYTHONPATH ?=
+
 .PHONY: test-cov
 test-cov: export COVERAGE_PROCESS_START = $(CURDIR)/$(if $(COV_CFG),$(COV_CFG),$(PYPROJECT))
 # use NIX_PYTHONPATH as this sets the contents as site dirs, which is needed to pick
