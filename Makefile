@@ -34,9 +34,9 @@ targets:
 
   build: Build with `nix build`
 
-  fu: Update with `nix flake update`
-
   push: Push to cachix
+
+  fu: Update with `nix flake update`
 
   lint: Run pre-commit lint
 
@@ -61,21 +61,22 @@ help:
 
 # {{{ build
 
-GIT_UNTRACKED != git ls-files --others --exclude-standard
+SYSTEM != echo $$(uname -m)-$$(uname -s | tr "[:upper:]" "[:lower:]")
 
-.PHONY: build
-build: result
+RESULTS = result result-dev
 
-.PHONY: result
-result: override ARGV += --out-link $@
-result:
-	$(if $(GIT_UNTRACKED),$(error Untracked files: [ $(GIT_UNTRACKED) ]))
+.PHONY: $(RESULTS)
+$(RESULTS):
 	nix build $(ARGV)
 
+result-dev: override ARGV += --out-link $@ .\#devShells.$(SYSTEM).default
+
+.PHONY: build
+build: $(RESULTS)
+
 .PHONY: push
-push: override ARGV += $<
-push: result
-	cachix push $(NAME) $(ARGV)
+push: $(RESULTS)
+	cachix push $(NAME) $^ $(ARGV)
 
 # }}}
 
