@@ -17,19 +17,24 @@ ARGV ?=
 
 PYPROJECT = pyproject.toml
 
+NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
+
 # }}}
 
 # {{{ help
 
 define _HELP
-Pyproject Env
+* $(NAME) dev env *
 
-Global:
+variables:
+
   ARGV: Append to target command line
 
-Targets:
+targets:
 
   build: Build with `nix build`
+
+  fu: Update with `nix flake update`
 
   push: Push to cachix
 
@@ -49,7 +54,8 @@ Targets:
 
   test-cov: Run pytest with coverage
     EXPR/TEST_PATH: As above
-    COV_REPORT: Coverage report types (current: $(COV_REPORT)) - see `pytest --help /--cov-report`
+    COV_REPORT: Coverage report types (current: $(COV_REPORT))
+		see `pytest --help /--cov-report`
 endef
 
 .PHONY: help
@@ -71,8 +77,6 @@ result: override ARGV += --out-link $@
 result:
 	$(if $(GIT_UNTRACKED),$(error Untracked files: [ $(GIT_UNTRACKED) ]))
 	nix build $(ARGV)
-
-NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
 
 .PHONY: push
 push: override ARGV += $<
@@ -229,6 +233,8 @@ ifneq ($(HERE),.)
 
 SKEL_FILES = Makefile .envrc .taplo.toml .yamllint.yml
 
+ifneq ($(wildcard $(SKEL_FILES)),$(SKEL_FILES))
+
 $(SKEL_FILES):
 	ln --symbolic --force --relative $(HERE)/$@ $@
 
@@ -238,8 +244,10 @@ setup: $(SKEL_FILES)
 define _HELP :=
 $(_HELP)
 
-  setup: Link skeleton files ($(SKEL_FILES)) to $(CURDIR)
+  setup: Link skeleton files ($(SKEL_FILES)) to PWD
 endef
+
+endif
 
 endif
 
