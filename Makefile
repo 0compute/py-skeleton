@@ -40,12 +40,6 @@ targets:
 
   lint: Run pre-commit lint
 
-  mypy: Run mypy
-
-  check: Run ruff check
-
-  format: Run ruff format
-
   whitelist: Write whitelist to $(WHITELIST)
 
   test: Run pytest
@@ -89,24 +83,7 @@ push: result
 
 .PHONY: lint
 lint:
-	pre-commit run -a $(ARGV)
-
-.PHONY: mypy
-ifeq ($(ARGV),)
-mypy: override ARGV = .
-endif
-mypy:
-	dmypy run $(ARGV)
-
-.PHONY: check
-check: override ARGV += .
-check:
-	ruff check $(ARGV)
-
-.PHONY: format
-format: override ARGV += .
-format:
-	ruff format $(ARGV)
+	pre-commit run --all-files $(ARGV)
 
 WHITELIST = tests/whitelist.py
 
