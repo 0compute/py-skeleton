@@ -126,7 +126,8 @@ COV_CFG =
 COV_ARGV = \
 	--cov \
 	--cov-context=test \
-	$(addprefix --cov-report=,$(COV_REPORT))
+	$(addprefix --cov-report=,$(COV_REPORT)) \
+	--no-cov-on-fail
 
 # needed for subprocess coverage
 SITE_CUSTOMIZE = .site/sitecustomize.py
