@@ -27,5 +27,5 @@ runs:
       with:
         submodules: recursive
     - run: |
-        nix build ".#devShells.${{ inputs.system }}.${{ inputs.devshell }}"
+        nix build --print-build-logs ".#devShells.${{ inputs.system }}.${{ inputs.devshell }}"
       shell: bash
