@@ -61,21 +61,21 @@ help:
 
 # {{{ build
 
-SYSTEM != echo $$(uname -m)-$$(uname -s | tr "[:upper:]" "[:lower:]")
+RESULTS = result
 
-RESULTS = result result-dev
+ifdef SYSTEM
+RESULTS += result-dev
+result-dev: override ARGV += --out-link $@ .\#devShells.$(SYSTEM).default
+endif
 
 .PHONY: $(RESULTS)
 $(RESULTS):
 	nix build $(ARGV)
 
-result-dev: override ARGV += --out-link $@ .\#devShells.$(SYSTEM).default
+.PHONY: build push
+build push: $(RESULTS)
 
-.PHONY: build
-build: $(RESULTS)
-
-.PHONY: push
-push: $(RESULTS)
+push:
 	cachix push $(NAME) $^ $(ARGV)
 
 # }}}
