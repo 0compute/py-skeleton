@@ -25,8 +25,8 @@
           {
             projectRoot,
             packageOverrides,
-            pre-commit,
-            dev-pkgs,
+            pre-commit ? import ./pre-commit.nix,
+            dev-pkgs ? null,
           }:
           let
             project = inputs.pyproject-nix.lib.project.loadPyproject {
@@ -96,7 +96,7 @@
                           nativeBuildInputs =
                             pkg.nativeBuildInputs
                             ++ (lib.optionals (pkg.optional-dependencies ? dev) pkg.optional-dependencies.dev)
-                            ++ (dev-pkgs pkgs);
+                            ++ (lib.optionals (dev-pkgs != null) (dev-pkgs pkgs));
                           shellHook = ''
                             runHook preShellHook
                             hash=$(nix hash file pyproject.toml flake.lock *.nix \
