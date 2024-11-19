@@ -25,5 +25,5 @@ runs:
         submodules: recursive
     - run: |
         SYSTEM=$(nix eval --impure --raw --expr builtins.currentSystem)
-        nix build ".#devShells.$SYSTEM.${inputs.devshell}"
+        nix build ".#devShells.$SYSTEM.${{ inputs.devshell }}"
       shell: bash
