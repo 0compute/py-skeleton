@@ -19,3 +19,5 @@ runs:
       with:
         name: ${{ github.event.repository.name }}
         authToken: ${{ inputs.cachix-authToken }}
+    - run: nix build ".#devShells.$(nix eval --impure --raw --expr builtins.currentSystem).default"
+      shell: bash
