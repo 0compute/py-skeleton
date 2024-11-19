@@ -5,6 +5,9 @@ inputs:
   cachix-authToken:
     description: Cachix auth token
     required: true
+  system:
+    description: system
+    default: x86_64-linux
   devshell:
     description: devShell
     default: default
@@ -24,6 +27,5 @@ runs:
       with:
         submodules: recursive
     - run: |
-        SYSTEM=$(nix eval --impure --raw --expr builtins.currentSystem)
-        nix build ".#devShells.$SYSTEM.${{ inputs.devshell }}"
+        nix build ".#devShells.${{ inputs.system }}.${{ inputs.devshell }}"
       shell: bash
