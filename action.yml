@@ -19,7 +19,3 @@ runs:
       with:
         name: ${{ github.event.repository.name }}
         authToken: ${{ inputs.cachix-authToken }}
-    - uses: JRMurr/direnv-nix-action@v4.1.0
-      with:
-        install-nix: false
-        cache-store: false
