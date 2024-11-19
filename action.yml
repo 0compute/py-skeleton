@@ -12,8 +12,7 @@ runs:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - uses: DeterminateSystems/nix-installer-action@v15
-    - uses: DeterminateSystems/magic-nix-cache-action@v8
+    - uses: cachix/install-nix-action@v30
     - uses: cachix/cachix-action@v15
       with:
         name: ${{ github.event.repository.name }}
