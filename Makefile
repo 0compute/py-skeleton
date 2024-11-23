@@ -10,21 +10,21 @@ export CLICOLOR_FORCE = 1
 
 export FORCE_COLOR = 1
 
-HERE = $(patsubst %/,%,$(dir $(lastword \
-	   $(shell realpath --relative-to $(CURDIR) $(MAKEFILE_LIST)))))
-
-ARGV ?=
-
 PYPROJECT = pyproject.toml
 
-NAME ?= $(shell grep "^name" $(PYPROJECT) | cut -d\" -f2)
+ARGV ?=
 
 # }}}
 
 # {{{ help
 
+.PHONY: help
+help:
+	$(info $(_HELP))
+	@true
+
 define _HELP
-* $(NAME) dev env *
+PyProject Dev
 
 variables:
 
@@ -32,50 +32,52 @@ variables:
 
 targets:
 
-  build: Build with `nix build`
+  fs: `nix flake show`
 
-  push: Push to cachix
+  fu: `nix flake update`
 
-  fu: Update with `nix flake update`
+  package: `nix build`
 
-  lint: Run pre-commit lint
+  push: `cachix push`
 
-  whitelist: Write whitelist to $(WHITELIST)
-
-  test: Run pytest
-    EXPR: Filter tests by substring expression, passed as "-k"
-    TEST_PATH: Path to test file or directory
-
-  test-cov: Run pytest with coverage
-    EXPR/TEST_PATH: As above
-    COV_REPORT: Coverage report types (current: $(COV_REPORT))
-		see `pytest --help /--cov-report`
+  lint: `pre-commit run`
 endef
 
-.PHONY: help
-help:
-	$(info $(_HELP))
-	@true
+# }}}
+
+# {{{ nix
+
+NIX ?= nix
+
+NIX_ARGV ?= --show-trace
+
+nix = $(strip $(NIX) $(NIX_ARGV) $1 $(ARGV))
+
+.PHONY: nix-%
+.flake-%:
+	$(call nix,flake $(subst _,-,$(subst -, ,$*)))
+
+.PHONY: fs fu fm
+fs: .flake-show
+fu: .flake-update
+fm: .flake-metadata
 
 # }}}
 
 # {{{ build
 
-RESULTS = result
+OUTPUTS = package dev-shell
 
-ifdef SYSTEM
-RESULTS += result-dev
-result-dev: override ARGV += --out-link $@ .\#devShells.$(SYSTEM).default
-endif
+.PHONY: $(OUTPUTS)
+$(OUTPUTS): override ARGV += --out-link $@
+$(OUTPUTS):
+	$(call nix,build)
 
-.PHONY: $(RESULTS)
-$(RESULTS):
-	nix build $(ARGV)
+dev-shell: SYSTEM ?= $(shell $(NIX) eval --impure --raw --expr builtins.currentSystem)
+dev-shell: override ARGV += .\#devShells.$(SYSTEM).default
 
-.PHONY: build push
-build push: $(RESULTS)
-
-push:
+push: NAME = $(shell python -c "print(__import__('tomllib').load(open('$(PYPROJECT)', 'rb'))['project']['name'])")
+push: $(OUTPUTS)
 	cachix push $(NAME) $^ $(ARGV)
 
 # }}}
@@ -85,6 +87,14 @@ push:
 .PHONY: lint
 lint:
 	pre-commit run --all-files $(ARGV)
+
+# }}}
+
+# {{{ test
+
+ifneq ($(wildcard tests),)
+
+# {{{ whitelist
 
 WHITELIST = tests/whitelist.py
 
@@ -99,8 +109,6 @@ $(WHITELIST):
 whitelist: $(WHITELIST)
 
 # }}}
-
-# {{{ test
 
 # {{{ basic
 
@@ -147,6 +155,21 @@ test-cov: export NIX_PYTHONPATH := $(CURDIR)/$(patsubst %/,%,$(dir $(SITE_CUSTOM
 test-cov: override ARGV += $(COV_ARGV)
 test-cov: $(SITE_CUSTOMIZE) test
 
+define _HELP :=
+	$(_HELP)
+
+  whitelist: write vulture whitelist
+
+  test: run tests
+    EXPR: Filter tests by substring expression
+    TEST_PATH: Path to test file or directory
+
+  test-cov: run tests with coverage
+    EXPR/TEST_PATH: As above
+    COV_REPORT: Coverage report types (current: $(COV_REPORT))
+                see `pytest --help /--cov-report`
+endef
+
 # }}}
 
 # {{{ subtest
@@ -156,6 +179,9 @@ SUBTEST_COV = test-$1-cov
 SUBTEST_TARGETS = $(SUBTEST_TEST) $(SUBTEST_COV)
 
 NUM_PROCESSES ?= logical
+
+HERE = $(patsubst %/,%,$(dir $(lastword \
+			 $(shell realpath --relative-to $(CURDIR) $(MAKEFILE_LIST)))))
 
 tests/.covcfg-%.toml: $(HERE)/covcfg.py $(PYPROJECT)
 	./$^ $* > $@
@@ -199,34 +225,6 @@ $(foreach test, \
 	$(eval $(call SUBTEST,$(notdir $(test)))))
 
 # }}}
-
-# }}}
-
-# {{{ admin
-
-.PHONY: fu
-fu:
-	nix flake update $(ARGV)
-
-ifneq ($(HERE),.)
-
-SKEL_FILES = Makefile .envrc .taplo.toml .yamllint.yml
-
-ifneq ($(wildcard $(SKEL_FILES)),$(SKEL_FILES))
-
-$(SKEL_FILES):
-	ln --symbolic --force --relative $(HERE)/$@ $@
-
-.PHONY: setup
-setup: $(SKEL_FILES)
-
-define _HELP :=
-$(_HELP)
-
-  setup: Link skeleton files ($(SKEL_FILES)) to PWD
-endef
-
-endif
 
 endif
 

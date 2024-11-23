@@ -8,7 +8,7 @@ import deepmerge
 import toml
 from zerolib import Dic
 
-
+# FIXME: the project has to have installed the dependencies of this script
 if __name__ == "__main__":
     # read coverage config from pyproject.toml
     # merge covcfg.toml on to it if it exists
@@ -38,4 +38,4 @@ if __name__ == "__main__":
             if isinstance(value, list):
                 value.sort()
 
-    toml.dump(dict(tool=dict(coverage=coverage)), sys.stdout)
+    toml.dump(dict(tool=dict(coverage=coverage)), sys.stdout)  # noqa: C408

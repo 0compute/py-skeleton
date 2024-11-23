@@ -1,4 +1,5 @@
 {
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
@@ -19,145 +20,191 @@
 
   outputs =
     inputs:
-    {
+    let
+
+      inherit (inputs.nixpkgs) lib;
+
+      base-overlay = import ./base-overlay.nix;
+      pre-commit = import ./pre-commit.nix;
+
+      preCommit =
+        system: pkgs: python:
+        inputs.nix-pre-commit.lib.${system}.mkLocalConfig (pre-commit {
+          inherit pkgs python;
+        });
+
+      pkgsFor = system: inputs.nixpkgs.legacyPackages.${system};
+
+    in
+
+    inputs.flake-utils.lib.eachDefaultSystem (system: {
+      devShells.default =
+        let
+          pkgs = pkgsFor system;
+        in
+        pkgs.mkShellNoCC {
+          inherit (preCommit system pkgs pkgs.python3) packages shellHook;
+        };
+    })
+
+    // {
+
       lib = {
+
         mkPythonProject =
           {
             projectRoot,
-            packageOverrides,
-            pre-commit ? import ./pre-commit.nix,
-            dev-pkgs ? null,
+            packageOverlays ? [ ],
+            systemPkgs ? null,
+            devPkgs ? null,
           }:
           let
+
             project = inputs.pyproject-nix.lib.project.loadPyproject {
               inherit projectRoot;
             };
-          out = inputs.flake-utils.lib.eachDefaultSystem (
-            system:
-            let
 
-              pkgs = inputs.nixpkgs.legacyPackages.${system};
-              inherit (pkgs) lib;
+            packageOverrides = lib.composeManyExtensions (
+              [ base-overlay ] ++ packageOverlays
+            );
 
-              formatter = pkgs.nixfmt-rfc-style;
+            self = inputs.flake-utils.lib.eachDefaultSystem (
+              system:
+              let
 
-              package =
-                python:
-                let
-                  attrs = project.renderers.buildPythonPackage { inherit python; };
-                in
-                with python.pkgs;
-                let
-                  # replace dependencies with local overrides, local packages are defined in
-                  # packageOverlays as "name-local"
-                  localize =
-                    packages:
-                    builtins.map (
-                      pkg:
-                      let
-                        local = "${pkg.pname}-local";
-                      in
-                      if builtins.hasAttr local python.pkgs then python.pkgs."${local}" else pkg
-                    ) packages;
-                in
-                buildPythonPackage (
-                  lib.recursiveUpdate attrs rec {
-                    dependencies = localize attrs.dependencies;
-                    optional-dependencies = lib.mapAttrs (_: localize) attrs.optional-dependencies;
-                    checkInputs = optional-dependencies.test;
-                  }
+                pkgs = pkgsFor system;
+
+                pyEnv = python: python.override { inherit packageOverrides; };
+
+                pythons = builtins.mapAttrs (_name: python: (pyEnv python)) (
+                  lib.filterAttrs (
+                    name: python:
+                    with inputs.pyproject-nix.lib;
+                    let
+                      pythonVersion = (pep508.mkEnviron python).python_full_version.value;
+                    in
+                    python ? implementation
+                    && python.implementation == "cpython"
+                    && (lib.all (
+                      spec: pep440.comparators.${spec.op} pythonVersion spec.version
+                    ) project.requires-python)
+                    # TODO: py313 up is broken pending
+                    # https://github.com/NixOS/nixpkgs/pull/355071
+                    # https://nixpk.gs/pr-tracker.html?pr=355071
+                    && builtins.compareVersions pythonVersion.str "3.13" == -1
+                    && (builtins.substring 7 15 name) != "Minimal"
+                  ) pkgs.pythonInterpreters
                 );
 
-              pyoverlay =
-                python:
-                python.override {
-                  inherit packageOverrides;
-                };
-
-              shells =
-                builtins.mapAttrs
-                  (
-                    _name: interpreter:
-                    let
-                      python = pyoverlay interpreter;
-                      pkg = package python;
-                    in
-                    pkgs.mkShellNoCC {
-                      inherit (python) name;
-                      inherit
-                        (inputs.nix-pre-commit.lib.${system}.mkLocalConfig (pre-commit {
-                          inherit pkgs python formatter;
-                        }))
-                        packages
-                        shellHook
-                        ;
-                      inputsFrom = [
-                        (pkg.overridePythonAttrs {
-                          nativeBuildInputs =
-                            pkg.nativeBuildInputs
-                            ++ (lib.optionals (pkg.optional-dependencies ? dev) pkg.optional-dependencies.dev)
-                            ++ (lib.optionals (dev-pkgs != null) (dev-pkgs pkgs));
-                          shellHook = ''
-                            runHook preShellHook
-                            hash=$(nix hash file pyproject.toml flake.lock *.nix \
-                              | sha1sum \
-                              | awk '{print $1}')
-                            prefix="''${XDG_CACHE_HOME:-$HOME/.cache}/nixpkgs/pip-shell-hook/''${PWD//\//%}/$hash"
-                            PATH="$prefix/bin:$PATH"
-                            export NIX_PYTHONPATH="$prefix/${python.sitePackages}:''${NIX_PYTHONPATH-}"
-                            [ -d "$prefix" ] || ${lib.getExe' python.pkgs.pip "pip"} install \
-                              --no-deps --editable . --prefix "$prefix" --no-build-isolation >&2
-                            runHook postShellHook
-                          '';
-                        })
-                      ];
+                package =
+                  python:
+                  let
+                    attrs = project.renderers.buildPythonPackage { inherit python; };
+                  in
+                  with python.pkgs;
+                  let
+                    # replace dependencies with local overrides, local packages are
+                    # defined in overlays as "name-local"
+                    localize =
+                      packages:
+                      builtins.map (
+                        pkg:
+                        let
+                          local = "${pkg.pname}-local";
+                        in
+                        if builtins.hasAttr local python.pkgs then
+                          python.pkgs."${local}"
+                        else
+                          pkg
+                      ) packages;
+                  in
+                  buildPythonPackage (
+                    lib.recursiveUpdate attrs rec {
+                      dependencies = lib.optionals (
+                        attrs ? dependencies
+                      ) localize attrs.dependencies;
+                      optional-dependencies = lib.optionalAttrs (
+                        attrs ? optional-dependencies
+                      ) lib.mapAttrs (_: localize) attrs.optional-dependencies;
+                      propagatedNativeBuildInputs = lib.optionals (systemPkgs != null) (
+                        systemPkgs pkgs
+                      );
+                      checkInputs = optional-dependencies.test or [ ];
+                      passthru = {
+                        inherit packageOverlays python;
+                      };
                     }
-                  )
-                  (
-                    lib.filterAttrs (
-                      name: python:
-                      python ? implementation
-                      && python.implementation == "cpython"
-                      && (lib.all (
-                        spec:
-                        with inputs.pyproject-nix.lib;
-                        pep440.comparators.${spec.op} (pep508.mkEnviron python).python_full_version.value spec.version
-                      ) project.requires-python)
-                      && (builtins.substring 7 15 name) != "Minimal"
-                    ) pkgs.pythonInterpreters
                   );
 
-              python = pyoverlay pkgs.python3;
-            in
-            # skip this one as there are no github runners
-            if system == "aarch64-linux" then
-              { }
-            else
-              {
-                inherit formatter;
+                devShell =
+                  python:
+                  let
+                    pkg = package python;
+                    pre-ccommit = preCommit system pkgs python;
+                  in
+                  pkgs.mkShellNoCC {
+                    inherit (python) name;
+                    inherit (pre-ccommit) packages;
+                    inputsFrom = [
+                      (pkg.overridePythonAttrs {
+                        nativeBuildInputs =
+                          pkg.nativeBuildInputs
+                          ++ (pkg.optional-dependencies.dev or [ ])
+                          ++ (lib.optionals (devPkgs != null) (devPkgs pkgs))
+                          ++ (with pkgs; [
+                            cachix
+                            gnumake
+                          ]);
+                      })
+                    ];
+                    shellHook = ''
+                      ${pre-ccommit.shellHook}
+                      source ${
+                        pkgs.substituteAll {
+                          src = ./shell-hook.sh;
+                          flake = ./.;
+                          awk = lib.getExe pkgs.gawk;
+                          grep = lib.getExe pkgs.gnugrep;
+                          inherit (python) sitePackages;
+                          ln = lib.getExe' pkgs.coreutils "ln";
+                          pip = lib.getExe' python.pkgs.pip "pip";
+                          sha1sum = lib.getExe' pkgs.coreutils "sha1sum";
+                        }
+                      }
+                    '';
 
-                devShells = shells // {
-                  default = shells.${python.pythonAttr};
-                };
+                  };
 
-                # XXX: filter out broken interpreters
-                githubShells = lib.filterAttrs (
-                  name: _value: name != "python313" && name != "python314"
-                ) shells;
+                devShells = builtins.mapAttrs (_name: devShell) pythons;
 
-                packages.default = package python;
-              }
-          );
+              in
+              # skip this one as there are no github runners
+              if system == "aarch64-linux" then
+                { }
+              else
+                let
+                  python = pyEnv pkgs.python3;
+                in
+                {
+                  devShells = devShells // {
+                    default = devShells.${python.pythonAttr};
+                  };
+                  packages.default = package python;
+                }
+
+            );
 
           in
-          out
+          self
           // {
             githubActions = inputs.nix-github-actions.lib.mkGithubMatrix {
-              checks = out.githubShells;
+              checks = lib.mapAttrs (
+                _system: pythons: builtins.removeAttrs pythons [ "default" ]
+              ) self.devShells;
             };
           };
+
       };
 
-      formatter.x86_64-linux = with inputs.nixpkgs.legacyPackages.x86_64-linux; nixfmt-rfc-style;
     };
 }

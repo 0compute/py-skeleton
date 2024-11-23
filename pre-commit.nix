@@ -1,11 +1,13 @@
-{
-  pkgs,
-  python,
-  formatter,
-}:
+{ pkgs, python }:
 (with pkgs; [
   {
-    package = formatter;
+    package = nixfmt-rfc-style;
+    id = "nixfmt";
+    args = [
+      "--width"
+      "70"
+      "--strict"
+    ];
     types = [ "nix" ];
   }
   {
@@ -29,6 +31,7 @@
     package = yamlfix;
     args = [
       "--exclude=.pre-commit-config.yaml"
+      "--exclude=.yamllint.yml"
       "."
     ];
     types = [ "yaml" ];

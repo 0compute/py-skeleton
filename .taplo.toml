@@ -1,2 +1,4 @@
 [formatting]
 array_auto_collapse = false
+compact_arrays = false
+reorder_arrays = true
