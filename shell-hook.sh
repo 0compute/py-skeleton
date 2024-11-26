@@ -10,7 +10,7 @@ gitignore() {
 }
 
 [ -f .gitignore ] || touch .gitignore
-gitignore .flake/ .pre-commit-config.yaml
+gitignore .flake/ .pre-commit-config.yaml dev-shell package
 
 FLAKE="@flake@"
 @ln@ --symbolic --no-dereference --force "$FLAKE" .flake
