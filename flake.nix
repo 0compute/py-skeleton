@@ -57,6 +57,7 @@
             packageOverlays ? [ ],
             systemPkgs ? null,
             devPkgs ? null,
+            overridePythonAttrs ? null,
           }:
           let
 
@@ -117,24 +118,25 @@
                         else
                           pkg
                       ) packages;
+                    pkg = buildPythonPackage (
+                      lib.recursiveUpdate attrs rec {
+                        dependencies = lib.optionals (
+                          attrs ? dependencies
+                        ) localize attrs.dependencies;
+                        optional-dependencies = lib.optionalAttrs (
+                          attrs ? optional-dependencies
+                        ) lib.mapAttrs (_: localize) attrs.optional-dependencies;
+                        propagatedNativeBuildInputs = lib.optionals (systemPkgs != null) (
+                          systemPkgs pkgs
+                        );
+                        checkInputs = optional-dependencies.test or [ ];
+                      }
+                    );
                   in
-                  buildPythonPackage (
-                    lib.recursiveUpdate attrs rec {
-                      dependencies = lib.optionals (
-                        attrs ? dependencies
-                      ) localize attrs.dependencies;
-                      optional-dependencies = lib.optionalAttrs (
-                        attrs ? optional-dependencies
-                      ) lib.mapAttrs (_: localize) attrs.optional-dependencies;
-                      propagatedNativeBuildInputs = lib.optionals (systemPkgs != null) (
-                        systemPkgs pkgs
-                      );
-                      checkInputs = optional-dependencies.test or [ ];
-                      passthru = {
-                        inherit packageOverlays python;
-                      };
-                    }
-                  );
+                  if overridePythonAttrs == null then
+                    pkg
+                  else
+                    pkg.overridePythonAttrs (overridePythonAttrs pkgs);
 
                 devShell =
                   python:
