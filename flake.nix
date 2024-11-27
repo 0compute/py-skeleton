@@ -33,14 +33,12 @@
           inherit pkgs python;
         });
 
-      pkgsFor = system: inputs.nixpkgs.legacyPackages.${system};
-
     in
 
     inputs.flake-utils.lib.eachDefaultSystem (system: {
       devShells.default =
         let
-          pkgs = pkgsFor system;
+          pkgs = inputs.nixpkgs.legacyPackages.${system};
         in
         pkgs.mkShellNoCC {
           inherit (preCommit system pkgs pkgs.python3) packages shellHook;
@@ -53,11 +51,18 @@
 
         mkPythonProject =
           {
+            # root of the project
             projectRoot,
+            # nixpkgs config
+            nixpkgs ? { },
+            # overlays to the python package set
             packageOverlays ? [ ],
-            systemPkgs ? null,
-            devPkgs ? null,
-            overridePythonAttrs ? null,
+
+            # function accepting `pkgs` arg that returns either a function or attrset
+            # passed to package.overridePythonAttrs
+            overridePkgAttrs ? null,
+            # as above, passed to devShell.overridePythonAttrs
+            overrideDevShellAttrs ? null,
           }:
           let
 
@@ -73,7 +78,7 @@
               system:
               let
 
-                pkgs = pkgsFor system;
+                pkgs = import inputs.nixpkgs (nixpkgs // { inherit system; });
 
                 pyEnv = python: python.override { inherit packageOverrides; };
 
@@ -126,55 +131,45 @@
                         optional-dependencies = lib.optionalAttrs (
                           attrs ? optional-dependencies
                         ) lib.mapAttrs (_: localize) attrs.optional-dependencies;
-                        propagatedNativeBuildInputs = lib.optionals (systemPkgs != null) (
-                          systemPkgs pkgs
-                        );
                         checkInputs = optional-dependencies.test or [ ];
                       }
                     );
                   in
-                  if overridePythonAttrs == null then
+                  if overridePkgAttrs == null then
                     pkg
                   else
-                    pkg.overridePythonAttrs (overridePythonAttrs pkgs);
+                    pkg.overridePythonAttrs (overridePkgAttrs pkgs);
 
                 devShell =
                   python:
                   let
+                    lint = preCommit system pkgs python;
                     pkg = package python;
-                    pre-ccommit = preCommit system pkgs python;
                   in
                   pkgs.mkShellNoCC {
                     inherit (python) name;
-                    inherit (pre-ccommit) packages;
                     inputsFrom = [
-                      (pkg.overridePythonAttrs {
-                        nativeBuildInputs =
-                          pkg.nativeBuildInputs
-                          ++ (pkg.optional-dependencies.dev or [ ])
-                          ++ (lib.optionals (devPkgs != null) (devPkgs pkgs))
-                          ++ (with pkgs; [
-                            cachix
-                            gnumake
-                          ]);
-                      })
+                      (
+                        if overrideDevShellAttrs == null then
+                          pkg
+                        else
+                          pkg.overridePythonAttrs (overrideDevShellAttrs pkgs)
+                      )
                     ];
+                    packages =
+                      (pkg.optional-dependencies.dev or [ ])
+                      ++ lint.packages
+                      # required by shellHook
+                      ++ [ python.pkgs.pip ]
+                      # required by Makefile
+                      ++ (with pkgs; [
+                        cachix
+                        gnumake
+                      ]);
                     shellHook = ''
-                      ${pre-ccommit.shellHook}
-                      source ${
-                        pkgs.substituteAll {
-                          src = ./shell-hook.sh;
-                          flake = ./.;
-                          awk = lib.getExe pkgs.gawk;
-                          grep = lib.getExe pkgs.gnugrep;
-                          inherit (python) sitePackages;
-                          ln = lib.getExe' pkgs.coreutils "ln";
-                          pip = lib.getExe' python.pkgs.pip "pip";
-                          sha1sum = lib.getExe' pkgs.coreutils "sha1sum";
-                        }
-                      }
+                      ${lint.shellHook}
+                      source ${./shell-hook.sh} ${./.} ${python.sitePackages}
                     '';
-
                   };
 
                 devShells = builtins.mapAttrs (_name: devShell) pythons;
