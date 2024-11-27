@@ -18,7 +18,7 @@ runs:
     - uses: nixbuild/nix-quick-install-action@v29
     - uses: nix-community/cache-nix-action@v5
       with:
-        primary-key: nix-${{ runner.os }}
+        primary-key: nix-${{ inputs.system }}
     - uses: cachix/cachix-action@v15
       with:
         name: ${{ github.event.repository.name }}
