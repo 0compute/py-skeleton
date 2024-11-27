@@ -32,53 +32,8 @@ variables:
 
 targets:
 
-  fs: `nix flake show`
-
-  fu: `nix flake update`
-
-  package: `nix build`
-
-  push: `cachix push`
-
   lint: `pre-commit run`
 endef
-
-# }}}
-
-# {{{ nix
-
-NIX ?= nix
-
-NIX_ARGV ?= --show-trace
-
-nix = $(strip $(NIX) $(NIX_ARGV) $1 $(ARGV))
-
-.PHONY: nix-%
-.flake-%:
-	$(call nix,flake $(subst _,-,$(subst -, ,$*)))
-
-.PHONY: fs fu fm
-fs: .flake-show
-fu: .flake-update
-fm: .flake-metadata
-
-# }}}
-
-# {{{ build
-
-OUTPUTS = package dev-shell
-
-.PHONY: $(OUTPUTS)
-$(OUTPUTS): override ARGV += --out-link $@
-$(OUTPUTS):
-	$(call nix,build)
-
-dev-shell: SYSTEM ?= $(shell $(NIX) eval --impure --raw --expr builtins.currentSystem)
-dev-shell: override ARGV += .\#devShells.$(SYSTEM).default
-
-push: NAME = $(shell python -c "print(__import__('tomllib').load(open('$(PYPROJECT)', 'rb'))['project']['name'])")
-push: $(OUTPUTS)
-	cachix push $(NAME) $^ $(ARGV)
 
 # }}}
 

@@ -160,12 +160,7 @@
                       (pkg.optional-dependencies.dev or [ ])
                       ++ lint.packages
                       # required by shellHook
-                      ++ [ python.pkgs.pip ]
-                      # required by Makefile
-                      ++ (with pkgs; [
-                        cachix
-                        gnumake
-                      ]);
+                      ++ [ python.pkgs.pip ];
                     shellHook = ''
                       ${lint.shellHook}
                       source ${./shell-hook.sh} ${./.} ${python.sitePackages}

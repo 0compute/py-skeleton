@@ -13,7 +13,7 @@ gitignore() {
 }
 
 [ -f .gitignore ] || touch .gitignore
-gitignore .flake .pre-commit-config.yaml dev-shell package
+gitignore .flake .pre-commit-config.yaml
 
 ln --symbolic --no-dereference --force "$flake" .flake
 for file in "${LINKS[@]}"; do
