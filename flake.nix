@@ -53,6 +53,8 @@
           {
             # root of the project
             projectRoot,
+            # whether to install pre-commit hook
+            pre-commit ? true,
             # nixpkgs config
             nixpkgs ? { },
             # overlays to the python package set
@@ -134,7 +136,7 @@
                 devShell =
                   python:
                   let
-                    lint = preCommit system pkgs python;
+                    precommit = preCommit system pkgs python;
                     pkg = package python;
                   in
                   pkgs.mkShellNoCC {
@@ -149,12 +151,14 @@
                     ];
                     packages =
                       (pkg.optional-dependencies.dev or [ ])
-                      ++ lint.packages
+                      ++ (lib.optionals pre-commit precommit.packages)
                       # required by shellHook
                       ++ [ python.pkgs.pip ];
                     shellHook = ''
-                      ${lint.shellHook}
-                      source ${./shell-hook.sh} ${./.} ${python.sitePackages}
+                      ${lib.optionalString pre-commit precommit.shellHook}
+                      source ${./shell-hook.sh} ${./.} ${python.sitePackages} ${
+                        if pre-commit then "1" else "0"
+                      }
                     '';
                   };
 

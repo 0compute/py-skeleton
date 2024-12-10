@@ -4,6 +4,7 @@ LINKS=(Makefile .envrc .taplo.toml .yamllint.yml)
 
 flake="$1"
 sitePackages="$2"
+preCommit="$3"
 
 gitignore() {
   local file
@@ -12,8 +13,9 @@ gitignore() {
   done
 }
 
-[ -f .gitignore ] || touch .gitignore
-gitignore .flake .pre-commit-config.yaml
+[[ -f .gitignore ]] || touch .gitignore
+gitignore .flake
+[[ $preCommit == 1 ]] || gitignore .pre-commit-config.yaml
 
 ln --symbolic --no-dereference --force "$flake" .flake
 for file in "${LINKS[@]}"; do
@@ -23,17 +25,13 @@ for file in "${LINKS[@]}"; do
   }
 done
 
-# shellcheck disable=2016
 hash=$(nix hash file pyproject.toml ./*.{nix,lock} | sha1sum | awk '{print $1}')
 
-# XXX: do we need a hashed directory? multiple python versions could share the same
-# root with different sitePackages, and with checking of bin/ for project.scripts we can
-# do the install only as required
 prefix="${XDG_CACHE_HOME:=$HOME/.cache}/pyproject-env/${PWD//\//%}/$hash"
 
 PATH="$prefix/bin:$PATH"
 
 export NIX_PYTHONPATH="$prefix/$sitePackages:${NIX_PYTHONPATH:-}"
 
-[ -d "$prefix" ] ||
+[[ -d $prefix ]] ||
   pip install --no-deps --editable . --prefix "$prefix" --no-build-isolation >&2
