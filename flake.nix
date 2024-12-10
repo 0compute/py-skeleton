@@ -122,6 +122,7 @@
                           attrs ? optional-dependencies
                         ) lib.mapAttrs (_: localize) attrs.optional-dependencies;
                         checkInputs = optional-dependencies.test or [ ];
+                        passthru.overlays = packageOverlays;
                       }
                     );
                   in
