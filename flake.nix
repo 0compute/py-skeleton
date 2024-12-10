@@ -57,7 +57,6 @@
             nixpkgs ? { },
             # overlays to the python package set
             packageOverlays ? [ ],
-
             # function accepting `pkgs` arg that returns either a function or attrset
             # passed to package.overridePythonAttrs
             overridePkgAttrs ? null,
@@ -105,26 +104,17 @@
                 package =
                   python:
                   let
-                    attrs = project.renderers.buildPythonPackage { inherit python; };
-                  in
-                  with python.pkgs;
-                  let
-                    # replace dependencies with local overrides, local packages are
-                    # defined in overlays as "name-local"
-                    localize =
-                      packages:
-                      builtins.map (
-                        pkg:
-                        let
-                          local = "${pkg.pname}-local";
-                        in
-                        if builtins.hasAttr local python.pkgs then
-                          python.pkgs."${local}"
-                        else
-                          pkg
-                      ) packages;
-                    pkg = buildPythonPackage (
-                      lib.recursiveUpdate attrs rec {
+                    pkg = python.pkgs.buildPythonPackage (
+                      let
+                        attrs = project.renderers.buildPythonPackage { inherit python; };
+                        # replace dependencies with local overrides, local packages are
+                        # defined in overlays as "name-local"
+                        localize =
+                          packages:
+                          builtins.map (pkg: python.pkgs."${pkg.pname}-local" or pkg) packages;
+                      in
+                      attrs
+                      // rec {
                         dependencies = lib.optionals (
                           attrs ? dependencies
                         ) localize attrs.dependencies;
