@@ -1,3 +1,18 @@
+[tool.mypy]
+strict = true
+# left to ruff
+disable_error_code = "name-defined,syntax"
+warn_unreachable = true
+cache_fine_grained = true
+
+[tool.ruff.lint]
+ignore = [
+  "C408", # unnecessary dict call
+  "D",    # pydocstyle
+  "G004", # Logging statement uses f-string
+]
+select = [ "ALL" ]
+
 [tool.yamlfix]
 explicit_start = false
 line_length = 100
