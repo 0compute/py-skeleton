@@ -29,7 +29,7 @@ hash=$(nix hash file pyproject.toml ./*.{nix,lock} | sha1sum | awk '{print $1}')
 
 prefix="${XDG_CACHE_HOME:=$HOME/.cache}/pyproject-env/${PWD//\//%}/$hash"
 
-PATH="$prefix/bin:$PATH"
+export PATH="$prefix/bin:$PATH"
 
 export NIX_PYTHONPATH="$prefix/$sitePackages:${NIX_PYTHONPATH:-}"
 
