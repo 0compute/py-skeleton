@@ -1,3 +1,4 @@
 /.dmypy.json
+/.env
 /.pre-commit-config.yaml
 __pycache__/
