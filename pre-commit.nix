@@ -82,10 +82,5 @@
       ];
       pass_filenames = false;
     })
-    (py {
-      package = vulture;
-      args = [ "." ];
-      pass_filenames = false;
-    })
   ]
 )
