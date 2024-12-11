@@ -7,11 +7,6 @@
       url = "github:nix-community/nix-github-actions";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nix-pre-commit = {
-      url = "github:kingarrrt/nix-pre-commit";
-      inputs.flake-utils.follows = "flake-utils";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     pyproject-nix = {
       url = "github:nix-community/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -21,18 +16,8 @@
   outputs =
     inputs:
     let
-
       inherit (inputs.nixpkgs) lib;
-
       base-overlay = import ./base-overlay.nix;
-      pre-commit = import ./pre-commit.nix;
-
-      preCommit =
-        system: pkgs: python:
-        inputs.nix-pre-commit.lib.${system}.mkLocalConfig (pre-commit {
-          inherit pkgs python;
-        });
-
     in
 
     inputs.flake-utils.lib.eachDefaultSystem (system: {
@@ -40,9 +25,7 @@
         let
           pkgs = inputs.nixpkgs.legacyPackages.${system};
         in
-        pkgs.mkShellNoCC {
-          inherit (preCommit system pkgs pkgs.python3) packages shellHook;
-        };
+        pkgs.mkShellNoCC { };
     })
 
     // {
@@ -53,8 +36,6 @@
           {
             # root of the project
             projectRoot,
-            # whether to install pre-commit hook
-            pre-commit ? true,
             # nixpkgs config
             nixpkgs ? { },
             # overlays to the python package set
@@ -136,7 +117,6 @@
                 devShell =
                   python:
                   let
-                    precommit = preCommit system pkgs python;
                     pkg = package python;
                   in
                   pkgs.mkShellNoCC {
@@ -149,16 +129,16 @@
                           pkg.overridePythonAttrs (overrideDevShellAttrs pkgs)
                       )
                     ];
-                    packages =
-                      (pkg.optional-dependencies.dev or [ ])
-                      ++ (lib.optionals pre-commit precommit.packages)
-                      # required by shellHook
-                      ++ [ python.pkgs.pip ];
+                    packages = (pkg.optional-dependencies.dev or [ ]) ++ [ ];
                     shellHook = ''
-                      ${lib.optionalString pre-commit precommit.shellHook}
-                      source ${./shell-hook.sh} ${./.} ${python.sitePackages} ${
-                        if pre-commit then "1" else "0"
-                      }
+                      hash=$(nix hash file pyproject.toml ./*.{nix,lock} | sha1sum | awk '{print $1}')
+                      prefix="''${XDG_CACHE_HOME:=$HOME/.cache}/pyproject-env/''${PWD//\//%}/$hash"
+                      export PATH="$prefix/bin:$PATH"
+                      export NIX_PYTHONPATH="$prefix/${python.sitePackages}:''${NIX_PYTHONPATH:-}"
+                      [[ -d $prefix ]] ||
+                        ${lib.getExe' python.pkgs.pip "pip"} install --no-deps --editable . \
+                          --prefix "$prefix" --no-build-isolation >&2
+                      unset hash prefix
                     '';
                   };
 

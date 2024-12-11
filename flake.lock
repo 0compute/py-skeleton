@@ -38,29 +38,6 @@
         "type": "github"
       }
     },
-    "nix-pre-commit": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1700918362,
-        "narHash": "sha256-liUFiXnuKrx/8RA/aTXjummv/Jc6Ph3Mgq/2Wcublfw=",
-        "owner": "kingarrrt",
-        "repo": "nix-pre-commit",
-        "rev": "f4e711a77a54da892d6c560ea94913a70901f98c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "kingarrrt",
-        "repo": "nix-pre-commit",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1733376361,
@@ -101,7 +78,6 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nix-github-actions": "nix-github-actions",
-        "nix-pre-commit": "nix-pre-commit",
         "nixpkgs": "nixpkgs",
         "pyproject-nix": "pyproject-nix"
       }
