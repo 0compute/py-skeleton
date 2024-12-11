@@ -1,5 +1,7 @@
 set -euo pipefail
 
+set -x
+
 LINKS=(Makefile .envrc .taplo.toml .yamllint.yml)
 
 flake="$1"
@@ -35,3 +37,5 @@ export NIX_PYTHONPATH="$prefix/$sitePackages:${NIX_PYTHONPATH:-}"
 
 [[ -d $prefix ]] ||
   pip install --no-deps --editable . --prefix "$prefix" --no-build-isolation >&2
+
+set +x
