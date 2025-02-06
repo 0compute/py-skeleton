@@ -144,21 +144,15 @@
 
                 devShells = builtins.mapAttrs (_name: devShell) pythons;
 
-              in
-              # skip this one as there are no github runners
-              if system == "aarch64-linux" then
-                { }
-              else
-                let
-                  python = pyEnv pkgs.python3;
-                in
-                {
-                  devShells = devShells // {
-                    default = devShells.${python.pythonAttr};
-                  };
-                  packages.default = package python;
-                }
+                python = pyEnv pkgs.python3;
 
+              in
+              {
+                devShells = devShells // {
+                  default = devShells.${python.pythonAttr};
+                };
+                packages.default = package python;
+              }
             );
 
           in
